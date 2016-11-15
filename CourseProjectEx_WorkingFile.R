@@ -1,6 +1,6 @@
 # PREDICT 422 Practical Machine Learning
 
-# Course Project - Example R Script File
+# Course Project - Working R Script File
 
 # OBJECTIVE: A charitable organization wishes to develop a machine learning
 # model to improve the cost-effectiveness of their direct marketing campaigns
