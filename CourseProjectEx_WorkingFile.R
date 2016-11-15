@@ -12,8 +12,7 @@
 # 2) Develop a prediction model to predict donation amounts for donors - the data
 # for this will consist of the records for donors only.
 
-#####
-#####
+
 # load the data
 charity <- read.csv("/Users/paulbertucci/Desktop/MSPA/PRED 422/charity.csv") # load the "charity.csv" file
 
