@@ -4,7 +4,7 @@
 
 # OBJECTIVE: A charitable organization wishes to develop a machine learning
 # model to improve the cost-effectiveness of their direct marketing campaigns
-# to previous donors.
+# to previous donors. - test
 
 # 1) Develop a classification model using data from the most recent campaign that
 # can effectively capture likely donors so that the expected net profit is maximized.
