@@ -1,5 +1,8 @@
 # PREDICT 422 Practical Machine Learning
+#test
 
+#this is a test
+#remove this line
 # Course Project - Example R Script File
 
 # OBJECTIVE: A charitable organization wishes to develop a machine learning
