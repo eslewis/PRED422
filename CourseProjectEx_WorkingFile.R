@@ -13,7 +13,7 @@
 # for this will consist of the records for donors only.
 
 
-# load the data
+# load the data, we will have to each add our own code here
 charity <- read.csv("/Users/paulbertucci/Desktop/MSPA/PRED 422/charity.csv") # load the "charity.csv" file
 
 # predictor transformations
