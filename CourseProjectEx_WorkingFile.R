@@ -14,7 +14,45 @@
 
 
 # load the data, we will have to each add our own code here
-charity <- read.csv("/Users/paulbertucci/Desktop/MSPA/PRED 422/charity.csv") # load the "charity.csv" file
+#charity <- read.csv("/Users/paulbertucci/Desktop/MSPA/PRED 422/charity.csv") # load the "charity.csv" file
+charity <- read.csv("/Users/mexic_000/Dropbox/Courses/Northwestern/422/Final_Group_Project/charity.csv")
+
+#transformation summary
+par(mfcol=c(1,2))
+hist(charity$avhv)
+hist(log(charity$avhv))
+
+hist(charity$incm)
+hist(log(charity$incm))
+
+hist(charity$inca)
+hist(log(charity$inca))
+
+hist(charity$tgif)
+hist(log(charity$tgif))
+
+hist(charity$agif)
+hist(log(charity$agif))
+
+hist(charity$tdon)
+hist(log(charity$tdon))
+
+hist(charity$npro)
+hist((charity$npro)^(2/3))  #this one may not be worthwhile
+
+hist(charity$plow)
+hist(charity$plow^(1/3)) #this does not look normal, but definitely better
+
+hist(charity$lgif)
+hist(charity$lgif^(1/5))
+
+hist(charity$rgif)
+hist(charity$rgif^(1/7))
+
+hist(charity$tlag)
+hist(charity$tlag^(1/5))
+par(mfcol=c(1,1))
+
 
 # predictor transformations
 
@@ -22,6 +60,19 @@ charity.t <- charity
 charity.t$avhv <- log(charity.t$avhv)
 # add further transformations if desired
 # for example, some statistical methods can struggle when predictors are highly skewed
+
+#these are based on the histograms above
+charity.t$incm_log <- log(charity.t$incm)
+charity.t$inca_log <- log(charity.t$inca)
+charity.t$tgif_log <- log(charity.t$tgif)
+charity.t$agif_log <- log(charity.t$agif)
+charity.t$tdon_log <- log(charity.t$tdon)
+charity.t$npro_pwr <- (charity.t$npro)^(2/3)
+charity.t$plow_pwr <- charity.t$plow^(1/3)
+charity.t$lgif_pwr <- charity.t$lgif^(1/5)
+charity.t$rgif_pwr <- charity.t$rgif^(1/7)
+charity.t$tlag_pwr <- charity.t$tlag^(1/5)
+
 
 # set up data for analysis
 
