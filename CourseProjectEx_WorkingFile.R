@@ -255,8 +255,8 @@ table(chat.valid.tree, c.valid) # classification table
 model.bag <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
                                           avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
                                         data.train.std.c,mtry=16,importance=TRUE) 
-importance(model.bag)
-varImpPlot(model.bag)
+randomForest::importance(model.bag)
+randomForest::varImpPlot(model.bag)
 
 post.valid.bag <- predict(model.bag, data.valid.std.c,type='prob')[,2] # n.valid.c post probs
 # calculate ordered profit function using average donation = $14.50 and mailing cost = $2
@@ -280,8 +280,8 @@ model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + re
                                          avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
                                        data.train.std.c) 
 
-importance(model.rf)
-varImpPlot(model.rf)
+randomForest::importance(model.rf)
+randomForest::varImpPlot(model.rf)
 
 post.valid.rf <- predict(model.rf, data.valid.std.c,type='prob')[,2] # n.valid.c post probs
 # calculate ordered profit function using average donation = $14.50 and mailing cost = $2
