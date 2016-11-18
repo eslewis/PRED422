@@ -75,16 +75,17 @@ charity.t$tlag_pwr <- charity.t$tlag^(1/5)
 
 
 # set up data for analysis
+# added tranformed variables into the data set by replacing 2;21 with c(2:21,25:34)
 
 data.train <- charity.t[charity$part=="train",]
-x.train <- data.train[,2:21]
+x.train <- data.train[,c(2:21,25:34)]
 c.train <- data.train[,22] # donr
 n.train.c <- length(c.train) # 3984
 y.train <- data.train[c.train==1,23] # damt for observations with donr=1
 n.train.y <- length(y.train) # 1995
 
 data.valid <- charity.t[charity$part=="valid",]
-x.valid <- data.valid[,2:21]
+x.valid <- data.valid[,c(2:21,25:34)]
 c.valid <- data.valid[,22] # donr
 n.valid.c <- length(c.valid) # 2018
 y.valid <- data.valid[c.valid==1,23] # damt for observations with donr=1
@@ -92,7 +93,7 @@ n.valid.y <- length(y.valid) # 999
 
 data.test <- charity.t[charity$part=="test",]
 n.test <- dim(data.test)[1] # 2007
-x.test <- data.test[,2:21]
+x.test <- data.test[,c(2:21,25:34)]
 
 x.train.mean <- apply(x.train, 2, mean)
 x.train.sd <- apply(x.train, 2, sd)
@@ -109,6 +110,7 @@ data.valid.std.y <- data.frame(x.valid.std[c.valid==1,], damt=y.valid) # to pred
 
 x.test.std <- t((t(x.test)-x.train.mean)/x.train.sd) # standardize using training mean and sd
 data.test.std <- data.frame(x.test.std)
+
 
 
 ##### CLASSIFICATION MODELING ######
@@ -277,7 +279,14 @@ table(chat.valid.bag, c.valid) # classification table
 # Random Forest Model
 ###################
 model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
-                                         avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+                                         avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif,
+                                       data.train.std.c) 
+
+
+
+
+model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+                                         avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif,
                                        data.train.std.c) 
 
 randomForest::importance(model.rf)
