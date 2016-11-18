@@ -78,14 +78,16 @@ charity.t$tlag_pwr <- charity.t$tlag^(1/5)
 # added tranformed variables into the data set by replacing 2;21 with c(2:21,25:34)
 
 data.train <- charity.t[charity$part=="train",]
-x.train <- data.train[,c(2:21,25:34)]
+# x.train <- data.train[,c(2:21,25:34)]
+x.train <- data.train[,2:21]
 c.train <- data.train[,22] # donr
 n.train.c <- length(c.train) # 3984
 y.train <- data.train[c.train==1,23] # damt for observations with donr=1
 n.train.y <- length(y.train) # 1995
 
 data.valid <- charity.t[charity$part=="valid",]
-x.valid <- data.valid[,c(2:21,25:34)]
+# x.valid <- data.valid[,c(2:21,25:34)]
+x.valid <- data.valid[,2:21]
 c.valid <- data.valid[,22] # donr
 n.valid.c <- length(c.valid) # 2018
 y.valid <- data.valid[c.valid==1,23] # damt for observations with donr=1
@@ -93,7 +95,8 @@ n.valid.y <- length(y.valid) # 999
 
 data.test <- charity.t[charity$part=="test",]
 n.test <- dim(data.test)[1] # 2007
-x.test <- data.test[,c(2:21,25:34)]
+# x.test <- data.test[,c(2:21,25:34)]
+x.test <- data.test[,2:21]
 
 x.train.mean <- apply(x.train, 2, mean)
 x.train.sd <- apply(x.train, 2, sd)
@@ -282,12 +285,26 @@ model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + re
                                          avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif,
                                        data.train.std.c) 
 
+# Exploring Variable Selection - this code takes too long
+# # ensure the results are repeatable
+# set.seed(1)
+# # load the library
+# library(mlbench)
+# library(caret)
+# # define the control using a random forest selection function
+# control <- rfeControl(functions=rfFuncs, method="cv", number=10)
+# # run the RFE algorithm
+# results_fs <- rfe(data.train.std.c[,1:20], data.train.std.c[,21], sizes=c(1:8), rfeControl=control)
+# # summarize the results
+# print(results_fs)
+# # list the chosen features
+# predictors(results_fs)
+# # plot the results
+# plot(results_fs, type=c("g", "o"))
 
-
-
-model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
-                                         avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif,
-                                       data.train.std.c) 
+# model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+#                                          avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif,
+#                                        data.train.std.c) 
 
 randomForest::importance(model.rf)
 randomForest::varImpPlot(model.rf)
@@ -333,6 +350,35 @@ cutoff.boost <- sort(post.valid.boost, decreasing=T)[n.mail.valid+1] # set cutof
 chat.valid.boost <- ifelse(post.valid.boost>cutoff.boost, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.boost, c.valid) # classification table
 
+###################
+# SVM
+###################
+
+library(e1071)
+
+svmfit=svm(data.train.std.c$donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+             avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+           data=data.train.std.c, kernel="radial",  gamma=.5, cost=10)
+plot(svmfit, data.train.std.c)
+summary(svmfit)
+
+# Still working on this code, attempting to tune the model use cv, this code takes too long
+# set.seed(1)
+# tune.out=tune(svm,donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+#                 avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+# data=data.train.std.c, kernel="radial", ranges=list(cost=c(0.1,1,10,100,1000),gamma=c(0.5,1,2,3,4)))
+# summary(tune.out)
+
+
+post.valid.svm <- predict(svmfit, data.valid.std.c) # n.valid.c post probs
+profit.svm <- cumsum(14.5*c.valid[order(post.valid.svm, decreasing=T)]-2)
+plot(profit.svm) # see how profits change as more mailings are made
+n.mail.valid <- which.max(profit.svm) # number of mailings that maximizes profits
+c(n.mail.valid, max(profit.svm)) # report number of mailings and maximum profit
+
+cutoff.svm <- sort(post.valid.svm, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
+chat.valid.svm <- ifelse(post.valid.svm>cutoff.svm, 1, 0) # mail to everyone above the cutoff
+table(chat.valid.svm, c.valid) # classification table
 
 
 ################
@@ -350,6 +396,8 @@ results<-rbind(c("Dec Tree",which.max(profit.tree),max(profit.tree)),results)
 results<-rbind(c("Bagging",which.max(profit.bag),max(profit.bag)),results)
 results<-rbind(c("Boosting",which.max(profit.boost),max(profit.boost)),results)
 results<-rbind(c("KNN",which.max(profit.knn),max(profit.knn)),results)
+results<-rbind(c("SVM",which.max(profit.svm),max(profit.svm)),results)
+
 
 results
 
