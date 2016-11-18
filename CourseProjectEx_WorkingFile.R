@@ -25,6 +25,9 @@ hist(log(charity$avhv))
 hist(charity$incm)
 hist(log(charity$incm))
 
+hist(charity$plow)
+hist(log(charity$plow))
+
 hist(charity$inca)
 hist(log(charity$inca))
 
@@ -34,8 +37,18 @@ hist(log(charity$tgif))
 hist(charity$agif)
 hist(log(charity$agif))
 
+hist(charity$rgif)
+hist(log(charity$rgif))
+
 hist(charity$tdon)
 hist(log(charity$tdon))
+
+hist(charity$tlag)
+hist(log(charity$tlag))
+
+hist(charity$plow)
+hist(log(charity$plow))
+
 
 hist(charity$npro)
 hist((charity$npro)^(2/3))  #this one may not be worthwhile
@@ -49,6 +62,9 @@ hist(charity$lgif^(1/5))
 hist(charity$rgif)
 hist(charity$rgif^(1/7))
 
+hist(charity$hinc)
+hist(charity$hinc^(2))
+
 hist(charity$tlag)
 hist(charity$tlag^(1/5))
 par(mfcol=c(1,1))
@@ -57,7 +73,7 @@ par(mfcol=c(1,1))
 # predictor transformations
 
 charity.t <- charity
-charity.t$avhv <- log(charity.t$avhv)
+# charity.t$avhv <- log(charity.t$avhv)
 # add further transformations if desired
 # for example, some statistical methods can struggle when predictors are highly skewed
 
@@ -72,22 +88,25 @@ charity.t$plow_pwr <- charity.t$plow^(1/3)
 charity.t$lgif_pwr <- charity.t$lgif^(1/5)
 charity.t$rgif_pwr <- charity.t$rgif^(1/7)
 charity.t$tlag_pwr <- charity.t$tlag^(1/5)
+charity.t$avhv_log <- log(charity.t$avhv)
+charity.t$tlag_log <- log(charity.t$tlag)
+
 
 
 # set up data for analysis
-# added tranformed variables into the data set by replacing 2;21 with c(2:21,25:34)
+# added tranformed variables into the data set by replacing 2;21 with c(2:21,25:36)
 
 data.train <- charity.t[charity$part=="train",]
-# x.train <- data.train[,c(2:21,25:34)]
-x.train <- data.train[,2:21]
+x.train <- data.train[,c(2:21,25:36)]
+# x.train <- data.train[,2:21]
 c.train <- data.train[,22] # donr
 n.train.c <- length(c.train) # 3984
 y.train <- data.train[c.train==1,23] # damt for observations with donr=1
 n.train.y <- length(y.train) # 1995
 
 data.valid <- charity.t[charity$part=="valid",]
-# x.valid <- data.valid[,c(2:21,25:34)]
-x.valid <- data.valid[,2:21]
+x.valid <- data.valid[,c(2:21,25:36)]
+# x.valid <- data.valid[,2:21]
 c.valid <- data.valid[,22] # donr
 n.valid.c <- length(c.valid) # 2018
 y.valid <- data.valid[c.valid==1,23] # damt for observations with donr=1
@@ -95,8 +114,8 @@ n.valid.y <- length(y.valid) # 999
 
 data.test <- charity.t[charity$part=="test",]
 n.test <- dim(data.test)[1] # 2007
-# x.test <- data.test[,c(2:21,25:34)]
-x.test <- data.test[,2:21]
+x.test <- data.test[,c(2:21,25:36)]
+# x.test <- data.test[,2:21]
 
 x.train.mean <- apply(x.train, 2, mean)
 x.train.sd <- apply(x.train, 2, sd)
@@ -114,16 +133,20 @@ data.valid.std.y <- data.frame(x.valid.std[c.valid==1,], damt=y.valid) # to pred
 x.test.std <- t((t(x.test)-x.train.mean)/x.train.sd) # standardize using training mean and sd
 data.test.std <- data.frame(x.test.std)
 
-
+#check correlations
+library(corrplot)
+corrplot(cor(x.train))
 
 ##### CLASSIFICATION MODELING ######
 
-# linear discriminant analysis
+###################
+# LDA 1 
+###################
 
 library(MASS)
 
 model.lda1 <- lda(donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + I(hinc^2) + genf + wrat + 
-                    avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+                    avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
                   data.train.std.c) # include additional terms on the fly using I()
 
 # Note: strictly speaking, LDA should not be used with qualitative predictors,
@@ -149,10 +172,40 @@ table(chat.valid.lda1, c.valid) # classification table
 # check n.mail.valid = 344+985 = 1329
 # check profit = 14.5*985-2*1329 = 11624.5
 
-# logistic regression
+###################
+# LDA 2 
+###################
+
+
+model.lda2 <- lda(donr ~ reg1 + reg2 + home + plow + npro + tdon + tlag + incm_log + 
+                    tgif_log + tdon_log + npro_pwr + tlag_pwr + tlag_log + factor(chld) + 
+                    factor(hinc) + factor(wrat), 
+                  data.train.std.c)
+
+
+# Note: strictly speaking, LDA should not be used with qualitative predictors,
+# but in practice it often is if the goal is simply to find a good predictive model
+
+post.valid.lda2 <- predict(model.lda2, data.valid.std.c)$posterior[,2] # n.valid.c post probs
+
+# calculate ordered profit function using average donation = $14.50 and mailing cost = $2
+
+profit.lda2 <- cumsum(14.5*c.valid[order(post.valid.lda2, decreasing=T)]-2)
+plot(profit.lda2) # see how profits change as more mailings are made
+n.mail.valid <- which.max(profit.lda2) # number of mailings that maximizes profits
+c(n.mail.valid, max(profit.lda2)) # report number of mailings and maximum profit
+
+cutoff.lda2 <- sort(post.valid.lda2, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
+chat.valid.lda2 <- ifelse(post.valid.lda2>cutoff.lda2, 1, 0) # mail to everyone above the cutoff
+table(chat.valid.lda2, c.valid) # classification table
+
+
+###################
+# Logestic Reg 1 
+###################
 
 model.log1 <- glm(donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + I(hinc^2) + genf + wrat + 
-                    avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+                    avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
                   data.train.std.c, family=binomial("logit"))
 
 post.valid.log1 <- predict(model.log1, data.valid.std.c, type="response") # n.valid post probs
@@ -174,18 +227,59 @@ table(chat.valid.log1, c.valid) # classification table
 #              1 310 981
 # check n.mail.valid = 310+981 = 1291
 # check profit = 14.5*981-2*1291 = 11642.5
+
+###################
+# Logestic Reg 2 
+###################
+
+#variable selction
+#using factor(x) to create dummy variables
+fullmod<-glm(donr ~ . + I(hinc^2)+ factor(chld)+factor(hinc)+factor(wrat),
+             data.train.std.c, family=binomial("logit"))
+# Using the step function below to perform backward variable selection 
+# backwards = step(fullmod,trace=0) 
+# formula(backwards)
+
+model.log2 <- glm(donr ~ reg1 + reg2 + home + avhv + incm + inca + npro + tdon + 
+                    tlag + incm_log + inca_log + tgif_log + tdon_log + npro_pwr + 
+                    tlag_pwr + avhv_log + tlag_log + factor(chld) + factor(hinc) + 
+                    factor(wrat),
+                  data.train.std.c, family=binomial("logit"))
+
+model.log2 <- glm(donr ~ reg1 + reg2 + home + plow + npro + tdon + tlag + incm_log + 
+                    tgif_log + tdon_log + npro_pwr + tlag_pwr + tlag_log + factor(chld) + 
+                    factor(hinc) + factor(wrat),
+                  data.train.std.c, family=binomial("logit"))
+
+summary(model.log2)
+
+post.valid.log2 <- predict(model.log2, data.valid.std.c, type="response") # n.valid post probs
+
+# calculate ordered profit function using average donation = $14.50 and mailing cost = $2
+
+profit.log2 <- cumsum(14.5*c.valid[order(post.valid.log2, decreasing=T)]-2)
+plot(profit.log2) # see how profits change as more mailings are made
+n.mail.valid <- which.max(profit.log2) # number of mailings that maximizes profits
+c(n.mail.valid, max(profit.log2)) # report number of mailings and maximum profit
+
+cutoff.log2 <- sort(post.valid.log2, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
+chat.valid.log2 <- ifelse(post.valid.log2>cutoff.log2, 1, 0) # mail to everyone above the cutoff
+table(chat.valid.log2, c.valid) # classification table
+
+
+
 ###################
 # KNN
 ###################
 
 library(class)
 set.seed(1)
-knn.pred=knn(data.train.std.c[,-21],data.valid.std.c[,-21],data.train.std.c[,21],k=5,prob=TRUE)
-knn.pred.cv=knn.cv(data.train.std.c[,-21],data.train.std.c[,21],k=3,prob=TRUE)
+knn.pred=knn(data.train.std.c[,-31],data.valid.std.c[,-33],data.train.std.c[,33],k=5,prob=TRUE)
+knn.pred.cv=knn.cv(data.train.std.c[,-33],data.train.std.c[,33],k=3,prob=TRUE)
 
 for (i in 1:10)
 {
-  knn.pred=knn(data.train.std.c[,-21],data.valid.std.c[,-21],data.train.std.c[,21],k=i,prob=TRUE)
+  knn.pred=knn(data.train.std.c[,-33],data.valid.std.c[,-33],data.train.std.c[,33],k=i,prob=TRUE)
   success<-(mean(knn.pred==c.valid))
   print(success)
 }
@@ -211,14 +305,13 @@ table(knn.pred, c.valid) # classification table
 table(chat.valid.knn, c.valid) # sanity check
 
 
-
 ###################
 # Dec Tree Model
 ###################
 library(tree)
 
 tree.fit=tree(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
-                avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+                avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
               data=data.train.std.c)
 
 plot(tree.fit)
@@ -230,8 +323,6 @@ cv.tree.fit
 par(mfrow=c(1,2))
 plot(cv.tree.fit$size,cv.tree.fit$dev,type="b")
 plot(cv.tree.fit$k,cv.tree.fit$dev,type="b")
-
-
 
 # We now apply the prune.misclass() function in order to prune the tree to the nodes with the lowest dev
 lowest.dev.node<-cv.tree.fit$size[which.min(cv.tree.fit$dev)]
@@ -258,7 +349,7 @@ table(chat.valid.tree, c.valid) # classification table
 # Bagging Model
 ###################
 model.bag <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
-                                          avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+                                          avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
                                         data.train.std.c,mtry=16,importance=TRUE) 
 randomForest::importance(model.bag)
 randomForest::varImpPlot(model.bag)
@@ -281,9 +372,11 @@ table(chat.valid.bag, c.valid) # classification table
 ###################
 # Random Forest Model
 ###################
+set.seed(1)
 model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
-                                         avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif,
+                                         avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif,
                                        data.train.std.c) 
+
 
 # Exploring Variable Selection - this code takes too long
 # # ensure the results are repeatable
@@ -301,13 +394,15 @@ model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + re
 # predictors(results_fs)
 # # plot the results
 # plot(results_fs, type=c("g", "o"))
-
-# model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
-#                                          avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif,
-#                                        data.train.std.c) 
+set.seed(3)
+ model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+                                        avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+                                       data.train.std.c) 
+model.rf
 
 randomForest::importance(model.rf)
 randomForest::varImpPlot(model.rf)
+
 
 post.valid.rf <- predict(model.rf, data.valid.std.c,type='prob')[,2] # n.valid.c post probs
 # calculate ordered profit function using average donation = $14.50 and mailing cost = $2
@@ -327,13 +422,22 @@ table(chat.valid.rf, c.valid) # classification table
 # Boosting Model
 ###################
 library(gbm)
-# We run gbm() with the option distribution="gaussian" since this is a regression problem; if it were a binary
-# classification problem, we would use distribution="bernoulli". 
+# We run gbm() with the option distribution="gaussian" for a regression problem; 
+# if it were a binary classification problem, we would use distribution="bernoulli". 
 # The argument n.trees=5000 indicates that we want 5000 trees, and the option interaction.depth=4 limits the depth of each tree.
 
+##using this code to tune the GBM model. This takes a long time so I have commented it out 
+# library(caret)
+# myTuneGrid <- expand.grid(n.trees = 500,interaction.depth = c(6,7),shrinkage = c(.001,.01,.1),n.minobsinnode=10)
+# fitControl <- trainControl(method = "repeatedcv", number = 3,repeats = 1, verboseIter = FALSE,returnResamp = "all")
+# myModel <- train(data.train.std.c$donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+#                    avhv + incm + inca + plow + npro + tgif  + tdon + tlag , 
+#                  data=data.train.std.c,method = "gbm",trControl = fitControl,tuneGrid = myTuneGrid)
+
+set.seed(1)
 model.boost=gbm(data.train.std.c$donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
-                  avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
-                data=data.train.std.c,distribution="bernoulli",n.trees=5000,interaction.depth=1)
+                  avhv + incm + inca + plow + npro + tgif  + tdon + tlag , 
+                data=data.train.std.c,distribution="bernoulli",n.trees=5000,interaction.depth=6,shrinkage = .01)
 
 # The summary() function produces a relative influence plot and also outputs the relative influence statistics.
 summary(model.boost)
@@ -397,19 +501,16 @@ results<-rbind(c("Bagging",which.max(profit.bag),max(profit.bag)),results)
 results<-rbind(c("Boosting",which.max(profit.boost),max(profit.boost)),results)
 results<-rbind(c("KNN",which.max(profit.knn),max(profit.knn)),results)
 results<-rbind(c("SVM",which.max(profit.svm),max(profit.svm)),results)
+results<-rbind(c("Log2",which.max(profit.log2),max(profit.log2)),results)
+results<-rbind(c("lda2",which.max(profit.lda2),max(profit.lda2)),results)
+
+results[order(results$profit,decreasing = TRUE),]
 
 
-results
 
 
-# Results
-
-# n.mail Profit  Model
-# 1329   11624.5 LDA1
-# 1291   11642.5 Log1
 
 # select model.log1 since it has maximum profit in the validation sample
-
 post.test <- predict(model.log1, data.test.std, type="response") # post probs for test data
 
 # Oversampling adjustment for calculating number of mailings for test set
@@ -438,7 +539,7 @@ table(chat.test)
 # Least squares regression
 
 model.ls1 <- lm(damt ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
-                  avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+                  avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
                 data.train.std.y)
 
 pred.valid.ls1 <- predict(model.ls1, newdata = data.valid.std.y) # validation predictions
@@ -449,7 +550,7 @@ sd((y.valid - pred.valid.ls1)^2)/sqrt(n.valid.y) # std error
 
 # drop wrat for illustrative purposes
 model.ls2 <- lm(damt ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + 
-                  avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+                  avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
                 data.train.std.y)
 
 pred.valid.ls2 <- predict(model.ls2, newdata = data.valid.std.y) # validation predictions
