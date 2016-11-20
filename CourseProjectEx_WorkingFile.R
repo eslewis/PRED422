@@ -532,15 +532,17 @@ a<-ggplot(data=results, aes(as.numeric(results$profit),as.numeric(results$error)
     ylab("Validation Set Error")
 a
 
-# select model.log1 since it has maximum profit in the validation sample
-# post.test <- predict(model.log1, data.test.std, type="response") # post probs for test data
-post.test <- predict(model.log2, data.test.std, type="response") # post probs for test data
 
+#Change these 2 variables to whichever model we choose.
+# select model.log2 since it has maximum profit in the validation sample
+best.model<-model.log2
+best.model.profit<-profit.log2
 
+#predict using the best model on test data set
+post.test <- predict(best.model, data.test.std, type="response") # post probs for test data
 
 # Oversampling adjustment for calculating number of mailings for test set
-
-n.mail.valid <- which.max(profit.log1)
+n.mail.valid <- which.max(best.model.profit)
 tr.rate <- .1 # typical response rate is .1
 vr.rate <- .5 # whereas validation response rate is .5
 adj.test.1 <- (n.mail.valid/n.valid.c)/(vr.rate/tr.rate) # adjustment for mail yes
@@ -551,51 +553,202 @@ n.mail.test <- round(n.test*adj.test, 0) # calculate number of mailings for test
 cutoff.test <- sort(post.test, decreasing=T)[n.mail.test+1] # set cutoff based on n.mail.test
 chat.test <- ifelse(post.test>cutoff.test, 1, 0) # mail to everyone above the cutoff
 table(chat.test)
-#    0    1 
-# 1676  331
-# based on this model we'll mail to the 331 highest posterior probabilities
+# 0    1 
+# 1705  302
+# based on this model we'll mail to the 302 highest posterior probabilities
 
 # See below for saving chat.test into a file for submission
 
 
-
+################################
 ##### PREDICTION MODELING ######
+################################
 
+################
 # Least squares regression
-
+################
 model.ls1 <- lm(damt ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
                   avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
                 data.train.std.y)
 
 pred.valid.ls1 <- predict(model.ls1, newdata = data.valid.std.y) # validation predictions
-mean((y.valid - pred.valid.ls1)^2) # mean prediction error
+mpe.ls1<-mean((y.valid - pred.valid.ls1)^2) # mean prediction error
 # 1.867523
-sd((y.valid - pred.valid.ls1)^2)/sqrt(n.valid.y) # std error
+std.error.ls1<-sd((y.valid - pred.valid.ls1)^2)/sqrt(n.valid.y) # std error
 # 0.1696615
+ls1.num.coef<-length(model.ls1$coefficients)
 
-# drop wrat for illustrative purposes
-model.ls2 <- lm(damt ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + 
-                  avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+################
+# Least squares regression2
+################
+
+fullmod<-lm(damt ~ . + I(hinc^2)+ factor(chld)+factor(hinc)+factor(wrat),
+             data.train.std.y)
+# Using the step function below to perform backward variable selection 
+backwards_lm = step(fullmod,trace=0) 
+forward_lm = step(fullmod,trace=0,direction = "forward") 
+step_lm = step(fullmod,trace=0,direction = "both") 
+formula(backwards_lm)
+formula(forward_lm)
+formula(step_lm)
+
+#using this for variable selection, #comment out because it takes time
+# model.backward <- lm(formula(backwards_lm), 
+#                 data.train.std.y)
+# model.forward <- lm(formula(forward_lm), 
+#                      data.train.std.y)
+# model.step <- lm(formula(step_lm), 
+#                      data.train.std.y)
+
+
+#Can use this code for cross validation to compare models
+#comment out for now, feel free to test. 
+
+# #K-fold cross validation
+# k=5
+# set.seed(1)
+# #seperates the data into k folds
+# folds=sample(1:k,nrow(data.train.std.y),replace=TRUE)
+# 
+# #loop that performs cross-validation
+# backward.cv.errors=matrix(NA,k,1)
+# for(j in 1:k){
+#     pred=predict(model.backward,data.train.std.y[folds==j,])
+#     backward.cv.errors[j]=mean((data.train.std.y$damt[folds==j]-pred)^2)
+# }
+# mean(backward.cv.errors)
+
+# using backward/step model , less variables 
+model.ls2 <- lm(damt ~ reg3 + reg4 + home + genf + plow + lgif + rgif + tdon + 
+                  agif + incm_log + tgif_log + agif_log + plow_pwr + lgif_pwr + 
+                  rgif_pwr + factor(chld) + factor(hinc) + factor(wrat), 
                 data.train.std.y)
 
 pred.valid.ls2 <- predict(model.ls2, newdata = data.valid.std.y) # validation predictions
-mean((y.valid - pred.valid.ls2)^2) # mean prediction error
-# 1.867433
-sd((y.valid - pred.valid.ls2)^2)/sqrt(n.valid.y) # std error
-# 0.1696498
+mpe.ls2<-mean((y.valid - pred.valid.ls2)^2) # mean prediction error
+std.error.ls2<-sd((y.valid - pred.valid.ls2)^2)/sqrt(n.valid.y) # std error
+ls2.num.coef<-length(model.ls2$coefficients)
 
-# Results
 
-# MPE  Model
-# 1.867523 LS1
-# 1.867433 LS2
 
+
+
+################
+# Ridge Regression
+################
+
+# The model.matrix() function is particularly useful for creating x; not only
+# does it produce a matrix corresponding to the predictors but it also
+# automatically transforms any qualitative variables into dummy variables
+
+x.matrix.train=model.matrix(damt ~ . + I(hinc^2)+ factor(chld)+factor(hinc)+factor(wrat),
+               data.train.std.y)
+y.matrix.train=data.train.std.y$damt
+
+x.matrix.valid=model.matrix(damt ~ . + I(hinc^2)+ factor(chld)+factor(hinc)+factor(wrat),
+               data.valid.std.y)
+y.matrix.valid<-data.valid.std.y$damt
+
+
+#glmnet package
+library(glmnet)
+# By default the glmnet() function performs ridge regression for an automatically
+# selected range of lambda values. However, here we have chosen to implement
+# the function over a grid of values ranging from lambda = 10^10 to lambda = 10e2, essentially
+# covering the full range of scenarios from the null model containing
+# only the intercept, to the least squares fit.
+grid=10^seq(10,-2,length=100)
+
+# #run ridge regression with lambda
+# Note that by default, the glmnet() function standardizes the
+# variables so that they are on the same scale. To turn off this default setting,
+# use the argument standardize=FALSE
+ridge.mod=glmnet(x.matrix.train,y.matrix.train,alpha=0,lambda=grid,standardize = FALSE)
+plot(ridge.mod, xvar="lambda", label=T)
+
+#matrix with 55 rows (one for each predictor, plus an intercept) and 100
+# columns (one for each value of lambda).
+dim(coef(ridge.mod))
+
+# cross-validation to choose the tuning parameter lambda. We can do this using
+# the built-in cross-validation function, cv.glmnet(). By default, the function cv.glmnet() performs ten-fold cross-validation, 
+#though this can be changed using the argument nfolds
+set.seed(1)
+cv.out=cv.glmnet(x.matrix.train,y.matrix.train,alpha=0)
+plot(cv.out)
+#identifying the best tuning parameter lambda
+bestlam=cv.out$lambda.min
+bestlam
+#Test MSE for the best lambda
+ridge.pred.best=predict(ridge.mod,s=bestlam,newx=(x.matrix.valid))
+mean((ridge.pred-y.matrix.valid)^2)
+
+#lagest lambda within 1 sd
+largestlam=cv.out$lambda.1se
+largestlam
+#Test MSE for the largest lambda to see if we get lower error
+ridge.pred.largest=predict(ridge.mod,s=largestlam,newx=(x.matrix.valid))
+mean((ridge.pred-y.matrix.valid)^2)
+
+#fitting the ridge model with best lambda
+ridge.mod=glmnet(x.matrix.train,y.matrix.train,alpha=0,lambda=bestlam,standardize = FALSE)
+
+pred.valid.ridge <- predict(ridge.mod,newx=(x.matrix.valid)) # validation predictions
+mpe.ridge<-mean((y.valid - pred.valid.ridge)^2) # mean prediction error
+std.error.ridge<-sd((y.valid - pred.valid.ridge)^2)/sqrt(n.valid.y) # std error
+ridge.coef <- predict(ridge.mod,newx=(x.matrix.valid),type = "coefficients")
+ridge.num.coef<-sum(ridge.coef!=0)
+
+
+
+################
+# Lasso
+################
+
+#alpha=1 for lasso model
+lasso.mod=glmnet(x.matrix.train,y.matrix.train,alpha=1,lambda=grid,standardize = FALSE)
+plot(lasso.mod)
+
+# perform cross-validation and compute the associated test error.
+set.seed(1)
+cv.out=cv.glmnet(x.matrix.train,y.matrix.train,alpha=1)
+plot(cv.out)
+# Best Lamda
+bestlam=cv.out$lambda.min
+bestlam
+lasso.pred=predict(lasso.mod,s=bestlam,newx=(x.matrix.valid))
+mean((lasso.pred-y.matrix.valid)^2)
+#Largest lam
+largestlam=cv.out$lambda.1se
+largestlam
+lasso.pred=predict(lasso.mod,s=largestlam,newx=(x.matrix.valid))
+mean((lasso.pred-y.matrix.valid)^2)
+
+#fitting the lasso model with best lambda
+lasso.mod=glmnet(x.matrix.train,y.matrix.train,alpha=1,lambda=bestlam,standardize = FALSE)
+pred.valid.lasso <- predict(lasso.mod,newx=(x.matrix.valid)) # validation predictions
+mpe.lasso<-mean((y.valid - pred.valid.lasso)^2) # mean prediction error
+std.error.lasso<-sd((y.valid - pred.valid.lasso)^2)/sqrt(n.valid.y) # std error
+lasso.coef <- predict(lasso.mod,newx=(x.matrix.valid),type = "coefficients")
+lasso.num.coef<-sum(lasso.coef!=0)
+
+
+
+#Results Data Frame
+model_pred<-c("ls1","ls2")
+mean_prediction_error<-c(mpe.ls1,mpe.ls2)
+std_error<-c(std.error.ls1,std.error.ls2)
+num_of_coef<-c(ls1.num.coef,ls2.num.coef)
+results_pred<-data.frame(model_pred,mean_prediction_error,std_error,num_of_coef,stringsAsFactors = FALSE)
+results_pred<-rbind(c("ridge",mpe.ridge,std.error.ridge,ridge.num.coef),results_pred)
+results_pred<-rbind(c("lasso",mpe.lasso,std.error.lasso,lasso.num.coef),results_pred)
+
+results_pred[order(results_pred$mean_prediction_error,decreasing = FALSE),]
+
+
+best_pred_model<-model.ls2
 # select model.ls2 since it has minimum mean prediction error in the validation sample
-
-yhat.test <- predict(model.ls2, newdata = data.test.std) # test predictions
-
-
-
+yhat.test <- predict(best_pred_model, newdata = data.test.std) # test predictions
 
 # FINAL RESULTS
 
