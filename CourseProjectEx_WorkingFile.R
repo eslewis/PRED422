@@ -165,6 +165,8 @@ c(n.mail.valid, max(profit.lda1)) # report number of mailings and maximum profit
 cutoff.lda1 <- sort(post.valid.lda1, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
 chat.valid.lda1 <- ifelse(post.valid.lda1>cutoff.lda1, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.lda1, c.valid) # classification table
+error.lda1 <- round(mean(chat.valid.lda1!=c.valid),4)
+
 #               c.valid
 #chat.valid.lda1   0   1
 #              0 675  14
@@ -198,6 +200,7 @@ c(n.mail.valid, max(profit.lda2)) # report number of mailings and maximum profit
 cutoff.lda2 <- sort(post.valid.lda2, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
 chat.valid.lda2 <- ifelse(post.valid.lda2>cutoff.lda2, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.lda2, c.valid) # classification table
+error.lda2 <- round(mean(chat.valid.lda2!=c.valid),4)
 
 
 ###################
@@ -221,6 +224,8 @@ c(n.mail.valid, max(profit.log1)) # report number of mailings and maximum profit
 cutoff.log1 <- sort(post.valid.log1, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
 chat.valid.log1 <- ifelse(post.valid.log1>cutoff.log1, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.log1, c.valid) # classification table
+error.log1 <- round(mean(chat.valid.log1!=c.valid),4)
+
 #               c.valid
 #chat.valid.log1   0   1
 #              0 709  18
@@ -265,6 +270,7 @@ c(n.mail.valid, max(profit.log2)) # report number of mailings and maximum profit
 cutoff.log2 <- sort(post.valid.log2, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
 chat.valid.log2 <- ifelse(post.valid.log2>cutoff.log2, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.log2, c.valid) # classification table
+error.log2 <- round(mean(chat.valid.log2!=c.valid),4)
 
 
 
@@ -303,6 +309,7 @@ cutoff.knn <- sort(post.valid.knn, decreasing=T)[n.mail.valid+1] # set cutoff ba
 chat.valid.knn <- ifelse(post.valid.knn>cutoff.knn, 1, 0) # mail to everyone above the cutoff
 table(knn.pred, c.valid) # classification table
 table(chat.valid.knn, c.valid) # sanity check
+error.knn <- round(mean(chat.valid.knn!=c.valid),4)
 
 
 ###################
@@ -342,6 +349,7 @@ max(profit.tree)
 cutoff.tree <- sort(post.valid.tree, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
 chat.valid.tree <- ifelse(post.valid.tree>cutoff.tree, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.tree, c.valid) # classification table
+error.tree <- round(mean(chat.valid.tree!=c.valid),4)
 
 
 
@@ -365,6 +373,7 @@ c(n.mail.valid, max(profit.bag)) # report number of mailings and maximum profit
 cutoff.bag <- sort(post.valid.bag, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
 chat.valid.bag <- ifelse(post.valid.bag>cutoff.bag, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.bag, c.valid) # classification table
+error.bag <- round(mean(chat.valid.bag!=c.valid),4)
 
 
 
@@ -415,6 +424,7 @@ c(n.mail.valid, max(profit.rf)) # report number of mailings and maximum profit
 cutoff.rf <- sort(post.valid.rf, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
 chat.valid.rf <- ifelse(post.valid.rf>cutoff.rf, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.rf, c.valid) # classification table
+error.rf <- round(mean(chat.valid.rf!=c.valid),4)
 
 
 
@@ -453,6 +463,9 @@ c(n.mail.valid, max(profit.boost)) # report number of mailings and maximum profi
 cutoff.boost <- sort(post.valid.boost, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
 chat.valid.boost <- ifelse(post.valid.boost>cutoff.boost, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.boost, c.valid) # classification table
+error.boost <- round(mean(chat.valid.boost!=c.valid),4)
+
+
 
 ###################
 # SVM
@@ -484,6 +497,7 @@ c(n.mail.valid, max(profit.svm)) # report number of mailings and maximum profit
 cutoff.svm <- sort(post.valid.svm, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
 chat.valid.svm <- ifelse(post.valid.svm>cutoff.svm, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.svm, c.valid) # classification table
+error.svm <- round(mean(chat.valid.svm!=c.valid),4)
 
 
 ################
@@ -492,68 +506,31 @@ table(chat.valid.svm, c.valid) # classification table
 model<-c("LDA1","Log1")
 n.mail<-c(which.max(profit.lda1),which.max(profit.log1))
 profit<-c(max(profit.lda1),max(profit.log1))
+error<-c(error.lda1,error.log1)
 
 
-results<-data.frame(model,n.mail,profit,stringsAsFactors = FALSE)
+results<-data.frame(model,n.mail,profit,error,stringsAsFactors = FALSE)
 # adding results for each new model
-results<-rbind(c("RandomForest",which.max(profit.rf),max(profit.rf)),results)
-results<-rbind(c("Dec Tree",which.max(profit.tree),max(profit.tree)),results)
-results<-rbind(c("Bagging",which.max(profit.bag),max(profit.bag)),results)
-results<-rbind(c("Boosting",which.max(profit.boost),max(profit.boost)),results)
-results<-rbind(c("KNN",which.max(profit.knn),max(profit.knn)),results)
-results<-rbind(c("SVM",which.max(profit.svm),max(profit.svm)),results)
-results<-rbind(c("Log2",which.max(profit.log2),max(profit.log2)),results)
-results<-rbind(c("lda2",which.max(profit.lda2),max(profit.lda2)),results)
+results<-rbind(c("RandomForest",which.max(profit.rf),max(profit.rf),error.rf),results)
+results<-rbind(c("Dec Tree",which.max(profit.tree),max(profit.tree),error.tree),results)
+results<-rbind(c("Bagging",which.max(profit.bag),max(profit.bag),error.bag),results)
+results<-rbind(c("Boosting",which.max(profit.boost),max(profit.boost),error.boost),results)
+results<-rbind(c("KNN",which.max(profit.knn),max(profit.knn),error.knn),results)
+results<-rbind(c("SVM",which.max(profit.svm),max(profit.svm),error.svm),results)
+results<-rbind(c("Log2",which.max(profit.log2),max(profit.log2),error.log2),results)
+results<-rbind(c("lda2",which.max(profit.lda2),max(profit.lda2),error.lda2),results)
 
+#Models ranked by Profit on validation set
 results[order(results$profit,decreasing = TRUE),]
+#Models ranked by error on validation set
+results[order(results$error,decreasing = FALSE),]
+dev.off()
 
-################
-# Let's look at the Errors in the models above to see which ones have the lowest
-# Thanks Eric for this code. 
-################
-
-Error_Boost <- round(mean(chat.valid.boost!=c.valid),4)
-Error_Rf <- round(mean(chat.valid.rf!=c.valid),4)
-Error_Bag <- round(mean(chat.valid.bag!=c.valid),4)
-Error_Knn <- round(mean(chat.valid.knn!=c.valid),4)
-Error_Tree <- round(mean(chat.valid.tree!=c.valid),4)
-Error_Log <- round(mean(chat.valid.log1!=c.valid),4)
-Error_Lda <- round(mean(chat.valid.lda1!=c.valid),4)
-Error_Lda2 <- round(mean(chat.valid.lda2!=c.valid),4)
-Error_Log2 <- round(mean(chat.valid.log2!=c.valid),4)
-Error_SVM <- round(mean(chat.valid.svm!=c.valid),4)
-
-################
-#Error Results in DataFrame
-################
-
-Error_Model <- c("KNN","Boosting","Bagging","Dec Tree",
-                 "RandomForest","LDA1","Log1",
-                 "LDA2","Log2","SVM")
-Error_Value <- c(Error_Knn,Error_Boost,Error_Bag,Error_Tree,
-                 Error_Rf,Error_Lda,Error_Log,
-                 Error_Lda2,Error_Log2,Error_SVM)
-Model_N.Mail <- c(which.max(profit.knn),which.max(profit.boost),which.max(profit.bag),
-                  which.max(profit.tree),which.max(profit.rf),which.max(profit.lda1),
-                  which.max(profit.log1),which.max(profit.lda2),which.max(profit.log2),
-                  which.max(profit.svm))
-Model_Profit <- c(max(profit.knn),max(profit.boost),max(profit.bag),
-                  max(profit.tree),max(profit.rf),max(profit.lda1),
-                  max(profit.log1),max(profit.lda2),max(profit.log2),
-                  max(profit.svm))
-
-Errors <- as.data.frame(cbind(Error_Model,Error_Value,Model_N.Mail,Model_Profit))
-Errors[order(Error_Value,decreasing = TRUE),]
-
-################
-## Summary Conclusion of the first part of this model
-################
-results[order(results$profit,decreasing = TRUE),] 
-Errors[order(Error_Value,decreasing = TRUE),]
-
-
-
-
+require(ggplot2)
+a<-ggplot(data=results, aes(as.numeric(results$profit),as.numeric(results$error))) + 
+  geom_point() + geom_text(aes(label=results$model), vjust=.75,hjust=1.1) + ylim (.10,.25) + xlim(10700,12025) +xlab("Validation Set Profit") +
+    ylab("Validation Set Error")
+a
 
 # select model.log1 since it has maximum profit in the validation sample
 # post.test <- predict(model.log1, data.test.std, type="response") # post probs for test data
