@@ -507,6 +507,50 @@ results<-rbind(c("lda2",which.max(profit.lda2),max(profit.lda2)),results)
 
 results[order(results$profit,decreasing = TRUE),]
 
+################
+# Let's look at the Errors in the models above to see which ones have the lowest
+# Thanks Eric for this code. 
+################
+
+Error_Boost <- round(mean(chat.valid.boost!=c.valid),4)
+Error_Rf <- round(mean(chat.valid.rf!=c.valid),4)
+Error_Bag <- round(mean(chat.valid.bag!=c.valid),4)
+Error_Knn <- round(mean(chat.valid.knn!=c.valid),4)
+Error_Tree <- round(mean(chat.valid.tree!=c.valid),4)
+Error_Log <- round(mean(chat.valid.log1!=c.valid),4)
+Error_Lda <- round(mean(chat.valid.lda1!=c.valid),4)
+Error_Lda2 <- round(mean(chat.valid.lda2!=c.valid),4)
+Error_Log2 <- round(mean(chat.valid.log2!=c.valid),4)
+Error_SVM <- round(mean(chat.valid.svm!=c.valid),4)
+
+################
+#Error Results in DataFrame
+################
+
+Error_Model <- c("KNN","Boosting","Bagging","Dec Tree",
+                 "RandomForest","LDA1","Log1",
+                 "LDA2","Log2","SVM")
+Error_Value <- c(Error_Knn,Error_Boost,Error_Bag,Error_Tree,
+                 Error_Rf,Error_Lda,Error_Log,
+                 Error_Lda2,Error_Log2,Error_SVM)
+Model_N.Mail <- c(which.max(profit.knn),which.max(profit.boost),which.max(profit.bag),
+                  which.max(profit.tree),which.max(profit.rf),which.max(profit.lda1),
+                  which.max(profit.log1),which.max(profit.lda2),which.max(profit.log2),
+                  which.max(profit.svm))
+Model_Profit <- c(max(profit.knn),max(profit.boost),max(profit.bag),
+                  max(profit.tree),max(profit.rf),max(profit.lda1),
+                  max(profit.log1),max(profit.lda2),max(profit.log2),
+                  max(profit.svm))
+
+Errors <- as.data.frame(cbind(Error_Model,Error_Value,Model_N.Mail,Model_Profit))
+Errors[order(Error_Value,decreasing = TRUE),]
+
+################
+## Summary Conclusion of the first part of this model
+################
+results[order(results$profit,decreasing = TRUE),] 
+Errors[order(Error_Value,decreasing = TRUE),]
+
 
 
 
