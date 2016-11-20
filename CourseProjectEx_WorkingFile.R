@@ -460,18 +460,19 @@ table(chat.valid.boost, c.valid) # classification table
 
 library(e1071)
 
-svmfit=svm(data.train.std.c$donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+svmfit=svm(data.train.std.c$donr ~ reg1 + reg2 + reg3 + reg4 + home + factor(chld) + hinc + genf + wrat + 
              avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
            data=data.train.std.c, kernel="radial",  gamma=.5, cost=10)
 plot(svmfit, data.train.std.c)
 summary(svmfit)
 
-# Still working on this code, attempting to tune the model use cv, this code takes too long
+## Still working on this code, attempting to tune the model use cv, this code takes too long
 # set.seed(1)
 # tune.out=tune(svm,donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
 #                 avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
 # data=data.train.std.c, kernel="radial", ranges=list(cost=c(0.1,1,10,100,1000),gamma=c(0.5,1,2,3,4)))
 # summary(tune.out)
+
 
 
 post.valid.svm <- predict(svmfit, data.valid.std.c) # n.valid.c post probs
@@ -511,7 +512,10 @@ results[order(results$profit,decreasing = TRUE),]
 
 
 # select model.log1 since it has maximum profit in the validation sample
-post.test <- predict(model.log1, data.test.std, type="response") # post probs for test data
+# post.test <- predict(model.log1, data.test.std, type="response") # post probs for test data
+post.test <- predict(model.log2, data.test.std, type="response") # post probs for test data
+
+
 
 # Oversampling adjustment for calculating number of mailings for test set
 
