@@ -800,12 +800,12 @@ summary(model.lm_spline)
 
 ##using this code to tune the GBM model. This takes a long time so I have commented it out 
 library(caret)
-myTuneGrid <- expand.grid(n.trees = 500,interaction.depth = c(7),shrinkage = c(.01,.1,.5,.9),n.minobsinnode=10)
-fitControl <- trainControl(method = "repeatedcv", number = 5,repeats = 1, verboseIter = FALSE,returnResamp = "all")
-myModel <- train(data.train.std.y$damt ~ reg3 + reg4 + home + genf + plow + lgif + rgif + tdon + 
-                agif + incm_log + tgif_log + agif_log + plow_pwr + lgif_pwr + 
-                rgif_pwr + factor(chld) + factor(hinc) + factor(wrat) , 
-                 data=data.train.std.y,method = "gbm",trControl = fitControl,tuneGrid = myTuneGrid)
+# myTuneGrid <- expand.grid(n.trees = 500,interaction.depth = c(7),shrinkage = c(.01,.1,.5,.9),n.minobsinnode=10)
+# fitControl <- trainControl(method = "repeatedcv", number = 5,repeats = 1, verboseIter = FALSE,returnResamp = "all")
+# myModel <- train(data.train.std.y$damt ~ reg3 + reg4 + home + genf + plow + lgif + rgif + tdon + 
+#                 agif + incm_log + tgif_log + agif_log + plow_pwr + lgif_pwr + 
+#                 rgif_pwr + factor(chld) + factor(hinc) + factor(wrat) , 
+#                  data=data.train.std.y,method = "gbm",trControl = fitControl,tuneGrid = myTuneGrid)
 
 
 set.seed(1)
