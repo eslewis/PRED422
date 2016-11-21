@@ -381,10 +381,10 @@ error.bag <- round(mean(chat.valid.bag!=c.valid),4)
 ###################
 # Random Forest Model
 ###################
-set.seed(1)
-model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
-                                         avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif,
-                                       data.train.std.c) 
+# set.seed(1)
+# model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+#                                          avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif,
+#                                        data.train.std.c) 
 
 
 # Exploring Variable Selection - this code takes too long
@@ -578,6 +578,10 @@ std.error.ls1<-sd((y.valid - pred.valid.ls1)^2)/sqrt(n.valid.y) # std error
 # 0.1696615
 ls1.num.coef<-length(model.ls1$coefficients)
 
+#evaluate collinearity
+library(car)
+vif(model.ls1)
+
 ################
 # Least squares regression2
 ################
@@ -733,6 +737,112 @@ lasso.coef <- predict(lasso.mod,newx=(x.matrix.valid),type = "coefficients")
 lasso.num.coef<-sum(lasso.coef!=0)
 
 
+################
+# PCR
+################
+library(pls)
+set.seed(2)
+pcr.fit=pcr(damt ~ . + I(hinc^2)+ factor(chld)+factor(hinc)+factor(wrat), data=data.train.std.y,scale=TRUE,validation="CV")
+
+# Setting scale=TRUE has the effect of standardizing each
+# predictor, using (6.6), prior to generating the principal components, so that
+# the scale on which each variable is measured will not have an effect. Setting
+# validation="CV" causes pcr() to compute the ten-fold cross-validation error
+# for each possible value of M, the number of principal components used.
+summary(pcr.fit)
+validationplot(pcr.fit,val.type="MSEP")
+#MSE values
+MSEP(pcr.fit)
+
+#MSE for 38
+pred.valid.pcr=predict(pcr.fit,data.valid.std.y,ncomp=38)
+mean((pred.valid.pcr-y.valid)^2)
+mpe.pcr<-mean((y.valid - pred.valid.pcr)^2) # mean prediction error
+std.error.pcr<-sd((y.valid - pred.valid.pcr)^2)/sqrt(n.valid.y) # std error
+# plot(pcr.fit, ncomp=1:38)
+
+################
+# Non Linear Spline
+################
+#fit a GAM to predict wage using natural spline functions 
+fit.incm_log<-smooth.spline(x=data.train.std.y$incm_log,y=data.train.std.y$damt,cv=TRUE)
+plot(fit.incm_log)
+fit.incm_log
+fit.tgif_log<-smooth.spline(x=data.train.std.y$tgif_log,y=data.train.std.y$damt,cv=TRUE)
+fit.tgif_log
+plot(fit.tgif_log)
+fit.plow_pwr<-smooth.spline(x=data.train.std.y$plow_pwr,y=data.train.std.y$damt,cv=TRUE)
+fit.plow_pwr
+plot(fit.plow_pwr)
+
+
+library(splines)
+model.lm_spline<-lm(damt ~ reg3 + reg4 + home + genf + plow + lgif + rgif + tdon + 
+     agif + ns(incm_log,4) + ns(tgif_log,4) + agif_log + ns(plow_pwr,4) + lgif_pwr + 
+     rgif_pwr + factor(chld) + factor(hinc) + factor(wrat), 
+   data=data.train.std.y)
+
+pred.valid.lm_spline <- predict(model.lm_spline, newdata = data.valid.std.y) # validation predictions
+mpe.lm_spline<-mean((y.valid - pred.valid.lm_spline)^2) # mean prediction error
+std.error.lm_spline<-sd((y.valid - pred.valid.lm_spline)^2)/sqrt(n.valid.y) # std error
+lm_spline.num.coef<-length(model.lm_spline$coefficients)
+mpe.lm_spline
+ls_spline.num.coef<-length(model.lm_spline$coefficients)
+summary(model.lm_spline)
+
+################
+# Boosting Regression
+################
+
+# We run gbm() with the option distribution="gaussian" for a regression problem; 
+# if it were a binary classification problem, we would use distribution="bernoulli". 
+# The argument n.trees=5000 indicates that we want 5000 trees, and the option interaction.depth=4 limits the depth of each tree.
+
+##using this code to tune the GBM model. This takes a long time so I have commented it out 
+# library(caret)
+# myTuneGrid <- expand.grid(n.trees = 500,interaction.depth = c(6,7),shrinkage = c(.001,.01,.1),n.minobsinnode=10)
+# fitControl <- trainControl(method = "repeatedcv", number = 3,repeats = 1, verboseIter = FALSE,returnResamp = "all")
+# myModel <- train(data.train.std.c$donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+#                    avhv + incm + inca + plow + npro + tgif  + tdon + tlag , 
+#                  data=data.train.std.c,method = "gbm",trControl = fitControl,tuneGrid = myTuneGrid)
+
+set.seed(1)
+model.boost_reg=gbm(data.train.std.y$damt ~ reg3 + reg4 + home + genf + plow + lgif + rgif + tdon + 
+                      agif + incm_log + tgif_log + agif_log + plow_pwr + lgif_pwr + 
+                      rgif_pwr + factor(chld) + factor(hinc) + factor(wrat), 
+                data=data.train.std.y,distribution="gaussian",n.trees=5000,interaction.depth=7,shrinkage = .001)
+
+# The summary() function produces a relative influence plot and also outputs the relative influence statistics.
+summary(model.boost_reg)
+
+pred.valid.boost_reg <- predict(model.boost_reg, newdata = data.valid.std.y,n.trees=5000) # validation predictions
+mpe.boost_reg<-mean((y.valid - pred.valid.boost_reg)^2) # mean prediction error
+std.error.boost_reg<-sd((y.valid - pred.valid.boost_reg)^2)/sqrt(n.valid.y) # std error
+boost_reg.num.coef<-length(model.boost_reg$coefficients)
+mpe.boost_reg
+boost_reg.num.coef<-length(model.boost_reg$var.names)
+summary(model.boost_reg)
+
+################
+# Random Forest Regression
+################
+set.seed(3)
+model.rf_reg <- randomForest::randomForest((data.train.std.y$damt) ~ reg3 + reg4 + home + genf + tdon + 
+                                           incm_log + tgif_log + agif_log + plow_pwr + lgif_pwr + 
+                                             rgif_pwr + (chld) + (hinc) + (wrat), 
+                                       data.train.std.y) 
+model.rf_reg
+
+randomForest::importance(model.rf_reg)
+randomForest::varImpPlot(model.rf_reg)
+
+pred.valid.rf_reg <- predict(model.rf_reg, data.valid.std.y) # n.valid.c post probs
+mpe.rf_reg<-mean((y.valid - pred.valid.rf_reg)^2) # mean prediction error
+std.error.rf_reg<-sd((y.valid - pred.valid.rf_reg)^2)/sqrt(n.valid.y) # std error
+mpe.rf_reg
+rf_reg.num.coef<-dim(model.rf_reg$importance)[1]
+
+
 
 #Results Data Frame
 model_pred<-c("ls1","ls2")
@@ -742,6 +852,10 @@ num_of_coef<-c(ls1.num.coef,ls2.num.coef)
 results_pred<-data.frame(model_pred,mean_prediction_error,std_error,num_of_coef,stringsAsFactors = FALSE)
 results_pred<-rbind(c("ridge",mpe.ridge,std.error.ridge,ridge.num.coef),results_pred)
 results_pred<-rbind(c("lasso",mpe.lasso,std.error.lasso,lasso.num.coef),results_pred)
+results_pred<-rbind(c("pcr",mpe.pcr,std.error.pcr,"NA"),results_pred)
+results_pred<-rbind(c("lm_wSpline",mpe.lm_spline,std.error.lm_spline,ls_spline.num.coef),results_pred)
+results_pred<-rbind(c("boost_reg",mpe.boost_reg,std.error.boost_reg,boost_reg.num.coef),results_pred)
+results_pred<-rbind(c("RandomForest_reg",mpe.rf_reg,std.error.rf_reg,rf_reg.num.coef),results_pred)
 
 results_pred[order(results_pred$mean_prediction_error,decreasing = FALSE),]
 
