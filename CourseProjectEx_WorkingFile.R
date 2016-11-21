@@ -799,18 +799,21 @@ summary(model.lm_spline)
 # The argument n.trees=5000 indicates that we want 5000 trees, and the option interaction.depth=4 limits the depth of each tree.
 
 ##using this code to tune the GBM model. This takes a long time so I have commented it out 
-# library(caret)
-# myTuneGrid <- expand.grid(n.trees = 500,interaction.depth = c(6,7),shrinkage = c(.001,.01,.1),n.minobsinnode=10)
-# fitControl <- trainControl(method = "repeatedcv", number = 3,repeats = 1, verboseIter = FALSE,returnResamp = "all")
-# myModel <- train(data.train.std.c$donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
-#                    avhv + incm + inca + plow + npro + tgif  + tdon + tlag , 
-#                  data=data.train.std.c,method = "gbm",trControl = fitControl,tuneGrid = myTuneGrid)
+library(caret)
+myTuneGrid <- expand.grid(n.trees = 500,interaction.depth = c(7),shrinkage = c(.01,.1,.5,.9),n.minobsinnode=10)
+fitControl <- trainControl(method = "repeatedcv", number = 5,repeats = 1, verboseIter = FALSE,returnResamp = "all")
+myModel <- train(data.train.std.y$damt ~ reg3 + reg4 + home + genf + plow + lgif + rgif + tdon + 
+                agif + incm_log + tgif_log + agif_log + plow_pwr + lgif_pwr + 
+                rgif_pwr + factor(chld) + factor(hinc) + factor(wrat) , 
+                 data=data.train.std.y,method = "gbm",trControl = fitControl,tuneGrid = myTuneGrid)
+
 
 set.seed(1)
 model.boost_reg=gbm(data.train.std.y$damt ~ reg3 + reg4 + home + genf + plow + lgif + rgif + tdon + 
-                      agif + incm_log + tgif_log + agif_log + plow_pwr + lgif_pwr + 
-                      rgif_pwr + factor(chld) + factor(hinc) + factor(wrat), 
-                data=data.train.std.y,distribution="gaussian",n.trees=5000,interaction.depth=7,shrinkage = .001)
+                      agif + incm_log + tgif_log  + 
+                      factor(chld) + factor(hinc) + factor(wrat), 
+                    data=data.train.std.y,distribution="gaussian",n.trees=5000,interaction.depth=7,shrinkage = .01)
+
 
 # The summary() function produces a relative influence plot and also outputs the relative influence statistics.
 summary(model.boost_reg)
