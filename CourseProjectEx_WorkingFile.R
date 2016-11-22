@@ -14,8 +14,8 @@
 
 
 # load the data, we will have to each add our own code here
-#charity <- read.csv("/Users/paulbertucci/Desktop/MSPA/PRED 422/charity.csv") # load the "charity.csv" file
-charity <- read.csv("/Users/mexic_000/Dropbox/Courses/Northwestern/422/Final_Group_Project/charity.csv")
+charity <- read.csv("/Users/paulbertucci/Desktop/MSPA/PRED 422/charity.csv") # load the "charity.csv" file
+# charity <- read.csv("/Users/mexic_000/Dropbox/Courses/Northwestern/422/Final_Group_Project/charity.csv")
 
 #transformation summary
 par(mfcol=c(1,2))
@@ -135,7 +135,7 @@ data.test.std <- data.frame(x.test.std)
 
 #check correlations
 library(corrplot)
-corrplot(cor(x.train))
+corrplot::corrplot(cor(x.train))
 
 ##### CLASSIFICATION MODELING ######
 
@@ -520,8 +520,6 @@ summary(svmfit)
 # data=data.train.std.c, kernel="radial", ranges=list(cost=c(0.1,1,10,100,1000),gamma=c(0.5,1,2,3,4)))
 # summary(tune.out)
 
-
-
 post.valid.svm <- predict(svmfit, data.valid.std.c) # n.valid.c post probs
 profit.svm <- cumsum(14.5*c.valid[order(post.valid.svm, decreasing=T)]-2)
 plot(profit.svm) # see how profits change as more mailings are made
@@ -532,6 +530,39 @@ cutoff.svm <- sort(post.valid.svm, decreasing=T)[n.mail.valid+1] # set cutoff ba
 chat.valid.svm <- ifelse(post.valid.svm>cutoff.svm, 1, 0) # mail to everyone above the cutoff
 table(chat.valid.svm, c.valid) # classification table
 error.svm <- round(mean(chat.valid.svm!=c.valid),4)
+
+
+###################
+# Stack
+###################
+
+stack.df<-DF <- data.frame("log2"=as.numeric(post.valid.log2), log3=as.numeric(post.valid.log3),  # as many cols as you need
+                           stringsAsFactors=FALSE) 
+stack.df<-cbind("RandomForest"=as.numeric(post.valid.rf),stack.df)
+stack.df<-cbind("Dec Tree"=as.numeric(post.valid.tree),stack.df)
+stack.df<-cbind("Bagging"=as.numeric(post.valid.bag),stack.df)
+stack.df<-cbind("Boosting"=as.numeric(post.valid.boost),stack.df)
+stack.df<-cbind("KNN"=as.numeric(post.valid.knn),stack.df)
+stack.df<-cbind("SVM"=as.numeric(post.valid.svm),stack.df)
+stack.df<-cbind("Log2"=as.numeric(post.valid.log2),stack.df)
+stack.df<-cbind("lda2"=as.numeric(post.valid.lda2),stack.df)
+stack.df<-cbind("Log3"=as.numeric(post.valid.log3),stack.df)
+
+head(stack.df)
+stack.df.subset<-(stack.df[,c("Log2","Boosting", "SVM")])
+post.valid.stack<-rowMeans(stack.df.subset)
+# post.valid.stack<-Reduce(`*`, stack.df.subset)
+
+profit.stack <- cumsum(14.5*c.valid[order(post.valid.stack, decreasing=T)]-2)
+plot(profit.stack) # see how profits change as more mailings are made
+n.mail.valid <- which.max(profit.stack) # number of mailings that maximizes profits
+c(n.mail.valid, max(profit.stack)) # report number of mailings and maximum profit
+
+cutoff.stack <- sort(post.valid.stack, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
+chat.valid.stack <- ifelse(post.valid.stack>cutoff.stack, 1, 0) # mail to everyone above the cutoff
+table(chat.valid.stack, c.valid) # classification table
+error.stack <- round(mean(chat.valid.stack!=c.valid),4)
+
 
 
 ################
@@ -554,6 +585,8 @@ results<-rbind(c("SVM",which.max(profit.svm),max(profit.svm),error.svm),results)
 results<-rbind(c("Log2",which.max(profit.log2),max(profit.log2),error.log2),results)
 results<-rbind(c("lda2",which.max(profit.lda2),max(profit.lda2),error.lda2),results)
 results<-rbind(c("Log3",which.max(profit.log3),max(profit.log3),error.log3),results)
+results<-rbind(c("Stack",which.max(profit.stack),max(profit.stack),error.stack),results)
+
 #Models ranked by Profit on validation set
 results[order(results$profit,decreasing = TRUE),]
 #Models ranked by error on validation set
@@ -878,7 +911,6 @@ mpe.rf_reg<-mean((y.valid - pred.valid.rf_reg)^2) # mean prediction error
 std.error.rf_reg<-sd((y.valid - pred.valid.rf_reg)^2)/sqrt(n.valid.y) # std error
 mpe.rf_reg
 rf_reg.num.coef<-dim(model.rf_reg$importance)[1]
-
 
 
 #Results Data Frame
