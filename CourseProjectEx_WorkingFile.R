@@ -14,8 +14,8 @@
 
 
 # load the data, we will have to each add our own code here
-charity <- read.csv("/Users/paulbertucci/Desktop/MSPA/PRED 422/charity.csv") # load the "charity.csv" file
-#charity <- read.csv("/Users/mexic_000/Dropbox/Courses/Northwestern/422/Final_Group_Project/charity.csv")
+#charity <- read.csv("/Users/paulbertucci/Desktop/MSPA/PRED 422/charity.csv") # load the "charity.csv" file
+charity <- read.csv("/Users/mexic_000/Dropbox/Courses/Northwestern/422/Final_Group_Project/charity.csv")
 
 #transformation summary
 par(mfcol=c(1,2))
@@ -253,7 +253,9 @@ model.log2 <- glm(donr ~ reg1 + reg2 + home + avhv + incm + inca + npro + tdon +
 
 model.log2 <- glm(donr ~ reg1 + reg2 + home + plow + npro + tdon + tlag + incm_log + 
                     tgif_log + tdon_log + npro_pwr + tlag_pwr + tlag_log + factor(chld) + 
-                    factor(hinc) + factor(wrat),
+                    factor(hinc) + factor(wrat)
+                    #+reg2:tdon_log
+                    ,
                   data.train.std.c, family=binomial("logit"))
 
 summary(model.log2)
@@ -272,7 +274,39 @@ chat.valid.log2 <- ifelse(post.valid.log2>cutoff.log2, 1, 0) # mail to everyone 
 table(chat.valid.log2, c.valid) # classification table
 error.log2 <- round(mean(chat.valid.log2!=c.valid),4)
 
+###################
+# Logestic Reg 3 
+###################
+model.log3 <- glm(donr ~ reg1 + reg2 + home + plow + npro + 
+                    tdon +
+                    #I(tdon^2)+
+                    I(tdon^3)+
+                    #I(tdon^4)+
+                    tlag + incm_log + 
+                    tgif_log + 
+                    tdon_log + 
+                    npro_pwr + tlag_pwr + tlag_log + factor(chld) + 
+                    factor(hinc) + factor(wrat)  
+                  #+reg2:tdon_log
+                  #+reg1:factor(chld)
+                  ,
+                  data.train.std.c, family=binomial("logit"))
 
+summary(model.log3)
+
+post.valid.log3 <- predict(model.log3, data.valid.std.c, type="response") # n.valid post probs
+
+# calculate ordered profit function using average donation = $14.50 and mailing cost = $2
+
+profit.log3 <- cumsum(14.5*c.valid[order(post.valid.log3, decreasing=T)]-2)
+plot(profit.log3) # see how profits change as more mailings are made
+n.mail.valid <- which.max(profit.log3) # number of mailings that maximizes profits
+c(n.mail.valid, max(profit.log3)) # report number of mailings and maximum profit
+
+cutoff.log3 <- sort(post.valid.log3, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
+chat.valid.log3 <- ifelse(post.valid.log3>cutoff.log3, 1, 0) # mail to everyone above the cutoff
+table(chat.valid.log3, c.valid) # classification table
+error.log3 <- round(mean(chat.valid.log3!=c.valid),4)
 
 ###################
 # KNN
@@ -519,7 +553,7 @@ results<-rbind(c("KNN",which.max(profit.knn),max(profit.knn),error.knn),results)
 results<-rbind(c("SVM",which.max(profit.svm),max(profit.svm),error.svm),results)
 results<-rbind(c("Log2",which.max(profit.log2),max(profit.log2),error.log2),results)
 results<-rbind(c("lda2",which.max(profit.lda2),max(profit.lda2),error.lda2),results)
-
+results<-rbind(c("Log3",which.max(profit.log3),max(profit.log3),error.log3),results)
 #Models ranked by Profit on validation set
 results[order(results$profit,decreasing = TRUE),]
 #Models ranked by error on validation set
@@ -685,14 +719,14 @@ bestlam=cv.out$lambda.min
 bestlam
 #Test MSE for the best lambda
 ridge.pred.best=predict(ridge.mod,s=bestlam,newx=(x.matrix.valid))
-mean((ridge.pred-y.matrix.valid)^2)
+mean((ridge.pred.best-y.matrix.valid)^2)
 
 #lagest lambda within 1 sd
 largestlam=cv.out$lambda.1se
 largestlam
 #Test MSE for the largest lambda to see if we get lower error
 ridge.pred.largest=predict(ridge.mod,s=largestlam,newx=(x.matrix.valid))
-mean((ridge.pred-y.matrix.valid)^2)
+mean((ridge.pred.largest-y.matrix.valid)^2)
 
 #fitting the ridge model with best lambda
 ridge.mod=glmnet(x.matrix.train,y.matrix.train,alpha=0,lambda=bestlam,standardize = FALSE)
