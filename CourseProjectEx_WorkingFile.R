@@ -881,3 +881,15 @@ ip <- data.frame(chat=chat.test, yhat=yhat.test) # data frame with two variables
 write.csv(ip, file="ABC.csv", row.names=FALSE) # use your initials for the file name
 
 # submit the csv file in Canvas for evaluation based on actual test donr and damt values
+
+#Create a table of predictions, send to 302 donors
+table(chat.test)
+
+#Dataframe for the chat (classification) and yhat (amount)
+hat.data.frame <- data.frame(chat = chat.test, yhat = yhat.test)
+
+#calculate the profit is $4,322.18
+Donors <- subset(hat.data.frame, chat==1)
+Profit <- sum(Donors$yhat)
+Profit
+
