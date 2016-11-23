@@ -312,17 +312,31 @@ error.log3 <- round(mean(chat.valid.log3!=c.valid),4)
 # KNN
 ###################
 
+
+
+knn.data.train.std.c<-as.matrix((data.train.std.c[,c("reg1","reg2","home","avhv","incm","inca","npro","tdon","tlag","incm_log","inca_log",
+"tgif_log","tdon_log","npro_pwr","tlag_pwr",
+"avhv_log","tlag_log","chld","hinc","wrat")]))
+
+knn.data.valid.std.c<-as.matrix(data.valid.std.c[,c("reg1","reg2","home","avhv","incm","inca","npro","tdon","tlag","incm_log","inca_log",
+                                           "tgif_log","tdon_log","npro_pwr","tlag_pwr",
+                                           "avhv_log","tlag_log","chld","hinc","wrat")])
+knn.data.train.std.c.target<-data.train.std.c[,33]
+
+
+
 library(class)
 set.seed(1)
-knn.pred=knn(data.train.std.c[,-31],data.valid.std.c[,-33],data.train.std.c[,33],k=5,prob=TRUE)
-knn.pred.cv=knn.cv(data.train.std.c[,-33],data.train.std.c[,33],k=3,prob=TRUE)
+# knn.pred.cv=knn.cv(data.train.std.c[,-33],data.train.std.c[,33],k=3,prob=TRUE)
 
 for (i in 1:10)
 {
-  knn.pred=knn(data.train.std.c[,-33],data.valid.std.c[,-33],data.train.std.c[,33],k=i,prob=TRUE)
+  knn.pred=knn(knn.data.train.std.c,knn.data.valid.std.c,knn.data.train.std.c.target,k=i,prob=TRUE)
   success<-(mean(knn.pred==c.valid))
   print(success)
 }
+knn.pred=knn(knn.data.train.std.c,knn.data.valid.std.c,knn.data.train.std.c.target,k=5,prob=TRUE)
+
 
 #confusion matrix
 table(knn.pred,c.valid)
@@ -533,6 +547,45 @@ error.svm <- round(mean(chat.valid.svm!=c.valid),4)
 
 
 ###################
+# svm2
+###################
+
+library(e1071)
+
+svm2fit=svm(data.train.std.c$donr ~ reg1 + reg2 + reg3 + reg4 + home + factor(chld) + hinc + genf + wrat + 
+             avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+           data=data.train.std.c, kernel="radial",  gamma=.03125, cost=10)
+plot(svm2fit, data.train.std.c)
+summary(svm2fit)
+
+# library(caret)
+# myTuneGrid <- expand.grid(sigma=2^c(-25,-5,-1),C=10)
+# fitControl <- trainControl(method = "cv", number = 5,repeats = 1, verboseIter = FALSE,returnResamp = "all",classProbs = TRUE)
+# myModel <- train(as.factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + factor(chld) + hinc + genf + wrat + 
+#                    avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+#                  data=data.train.std.c , method = "svmRadial",trControl = fitControl,tuneGrid = myTuneGrid)
+# 
+
+# set.seed(1)
+# tune.out=tune(svm,donr ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+#                 avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
+# data=data.train.std.c, kernel="radial", ranges=list(cost=c(10),gamma=c(2^c(-25,-5,-1))))
+# summary(tune.out)
+
+
+post.valid.svm2 <- predict(svm2fit, data.valid.std.c) # n.valid.c post probs
+profit.svm2 <- cumsum(14.5*c.valid[order(post.valid.svm2, decreasing=T)]-2)
+plot(profit.svm2) # see how profits change as more mailings are made
+n.mail.valid <- which.max(profit.svm2) # number of mailings that maximizes profits
+c(n.mail.valid, max(profit.svm2)) # report number of mailings and maximum profit
+
+cutoff.svm2 <- sort(post.valid.svm2, decreasing=T)[n.mail.valid+1] # set cutoff based on n.mail.valid
+chat.valid.svm2 <- ifelse(post.valid.svm2>cutoff.svm2, 1, 0) # mail to everyone above the cutoff
+table(chat.valid.svm2, c.valid) # classification table
+error.svm2 <- round(mean(chat.valid.svm2!=c.valid),4)
+
+
+###################
 # Stack
 ###################
 
@@ -547,9 +600,12 @@ stack.df<-cbind("SVM"=as.numeric(post.valid.svm),stack.df)
 stack.df<-cbind("Log2"=as.numeric(post.valid.log2),stack.df)
 stack.df<-cbind("lda2"=as.numeric(post.valid.lda2),stack.df)
 stack.df<-cbind("Log3"=as.numeric(post.valid.log3),stack.df)
+stack.df<-cbind("svm2"=as.numeric(post.valid.svm2),stack.df)
+
 
 head(stack.df)
 stack.df.subset<-(stack.df[,c("Log2","Boosting", "SVM")])
+
 post.valid.stack<-rowMeans(stack.df.subset)
 # post.valid.stack<-Reduce(`*`, stack.df.subset)
 
@@ -586,6 +642,8 @@ results<-rbind(c("Log2",which.max(profit.log2),max(profit.log2),error.log2),resu
 results<-rbind(c("lda2",which.max(profit.lda2),max(profit.lda2),error.lda2),results)
 results<-rbind(c("Log3",which.max(profit.log3),max(profit.log3),error.log3),results)
 results<-rbind(c("Stack",which.max(profit.stack),max(profit.stack),error.stack),results)
+results<-rbind(c("SVM2",which.max(profit.svm2),max(profit.svm2),error.svm2),results)
+
 
 #Models ranked by Profit on validation set
 results[order(results$profit,decreasing = TRUE),]
