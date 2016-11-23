@@ -91,6 +91,20 @@ charity.t$tlag_pwr <- charity.t$tlag^(1/5)
 charity.t$avhv_log <- log(charity.t$avhv)
 charity.t$tlag_log <- log(charity.t$tlag)
 
+####### Interesting Tables for EDA #######
+# no need to include all #
+(table(charity.t$donr,charity.t$chld))
+hist(charity.t$chld[charity.t$donr==1])
+(table(charity.t$donr,charity.t$hinc>mean(charity.t$hinc)))
+
+(table(charity.t$donr,charity.t$hinc))
+hist(charity.t$hinc[charity.t$donr==1])
+hist(charity.t$hinc[charity.t$donr==0])
+
+(table(charity.t$donr,charity.t$wrat))
+hist(charity.t$wrat[charity.t$donr==1])
+hist(charity.t$wrat[charity.t$donr==0])
+
 
 
 # set up data for analysis
@@ -452,7 +466,7 @@ error.bag <- round(mean(chat.valid.bag!=c.valid),4)
 # # plot the results
 # plot(results_fs, type=c("g", "o"))
 set.seed(3)
- model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
+model.rf <- randomForest::randomForest(factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + chld + hinc + genf + wrat + 
                                         avhv_log + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
                                        data.train.std.c) 
 model.rf
@@ -984,6 +998,8 @@ results_pred<-rbind(c("lm_wSpline",mpe.lm_spline,std.error.lm_spline,ls_spline.n
 results_pred<-rbind(c("boost_reg",mpe.boost_reg,std.error.boost_reg,boost_reg.num.coef),results_pred)
 results_pred<-rbind(c("RandomForest_reg",mpe.rf_reg,std.error.rf_reg,rf_reg.num.coef),results_pred)
 
+results_pred$mean_prediction_error<-round(as.numeric(results_pred$mean_prediction_error),4)
+results_pred$std_error<-round(as.numeric(results_pred$std_error),4)
 results_pred[order(results_pred$mean_prediction_error,decreasing = FALSE),]
 
 
