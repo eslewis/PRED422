@@ -535,10 +535,9 @@ error.boost <- round(mean(chat.valid.boost!=c.valid),4)
 
 library(e1071)
 
-svmfit=svm(data.train.std.c$donr ~ reg1 + reg2 + reg3 + reg4 + home + factor(chld) + hinc + genf + wrat + 
+svmfit=svm(as.factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + factor(chld) + hinc + genf + wrat + 
              avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
-           data=data.train.std.c, kernel="radial",  gamma=.5, cost=10)
-plot(svmfit, data.train.std.c)
+           data=data.train.std.c, kernel="radial",  gamma=.5, cost=10,probability =TRUE)
 summary(svmfit)
 
 ## Still working on this code, attempting to tune the model use cv, this code takes too long
@@ -548,7 +547,8 @@ summary(svmfit)
 # data=data.train.std.c, kernel="radial", ranges=list(cost=c(0.1,1,10,100,1000),gamma=c(0.5,1,2,3,4)))
 # summary(tune.out)
 
-post.valid.svm <- predict(svmfit, data.valid.std.c) # n.valid.c post probs
+pred<-predict(svmfit, data.valid.std.c,probability = TRUE)
+post.valid.svm <- attr(pred, "probabilities")[,2] # n.valid.c post probs
 profit.svm <- cumsum(14.5*c.valid[order(post.valid.svm, decreasing=T)]-2)
 plot(profit.svm) # see how profits change as more mailings are made
 n.mail.valid <- which.max(profit.svm) # number of mailings that maximizes profits
@@ -566,9 +566,9 @@ error.svm <- round(mean(chat.valid.svm!=c.valid),4)
 
 library(e1071)
 
-svm2fit=svm(data.train.std.c$donr ~ reg1 + reg2 + reg3 + reg4 + home + factor(chld) + hinc + genf + wrat + 
+svm2fit=svm(as.factor(data.train.std.c$donr) ~ reg1 + reg2 + reg3 + reg4 + home + factor(chld) + hinc + genf + wrat + 
              avhv + incm + inca + plow + npro + tgif + lgif + rgif + tdon + tlag + agif, 
-           data=data.train.std.c, kernel="radial",  gamma=.03125, cost=10)
+           data=data.train.std.c, kernel="radial",  gamma=.03125, cost=10,probability =TRUE)
 plot(svm2fit, data.train.std.c)
 summary(svm2fit)
 
@@ -586,8 +586,8 @@ summary(svm2fit)
 # data=data.train.std.c, kernel="radial", ranges=list(cost=c(10),gamma=c(2^c(-25,-5,-1))))
 # summary(tune.out)
 
-
-post.valid.svm2 <- predict(svm2fit, data.valid.std.c) # n.valid.c post probs
+pred<-predict(svm2fit, data.valid.std.c,probability = TRUE)
+post.valid.svm2 <- attr(pred, "probabilities")[,2] # n.valid.c post probs
 profit.svm2 <- cumsum(14.5*c.valid[order(post.valid.svm2, decreasing=T)]-2)
 plot(profit.svm2) # see how profits change as more mailings are made
 n.mail.valid <- which.max(profit.svm2) # number of mailings that maximizes profits
