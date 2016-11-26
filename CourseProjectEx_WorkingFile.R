@@ -893,3 +893,5 @@ Donors <- subset(hat.data.frame, chat==1)
 Profit <- sum(Donors$yhat)
 Profit
 
+summary(yhat.test)
+
